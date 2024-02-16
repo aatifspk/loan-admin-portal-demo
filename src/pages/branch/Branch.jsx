@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { advancedTable } from "../../constant/table-data";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
@@ -12,6 +12,14 @@ import {
 } from "react-table";
 import GlobalFilter from "./GlobalFilter";
 import branchService from "@/services/branch-service";
+import { useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
+
+import { setBranches } from "@/store/api/branch/branchSlice";
+import debounceFunction from "../../helper/Debounce";
+
+import { tr } from "@faker-js/faker";
+
 
 const COLUMNS = [
   {
@@ -43,8 +51,8 @@ const COLUMNS = [
         <span className="block w-full">
           <span
             className={` inline-block px-3 min-w-[90px] text-center mx-auto py-1 rounded-[999px] bg-opacity-25 ${cell.row.original.status === true
-                ? "text-success-500 bg-success-500"
-                : ""
+              ? "text-success-500 bg-success-500"
+              : ""
               } 
             ${cell.row.original.status == false
                 ? "text-warning-500 bg-warning-500"
@@ -52,7 +60,7 @@ const COLUMNS = [
               }
              `}
           >
-            { cell.row.original.status ? "Active" : "InActive" }
+            {cell.row.original.status ? "Active" : "InActive"}
           </span>
         </span>
       );
@@ -118,7 +126,16 @@ const Branch = ({ title = "Branch List" }) => {
   // const data = useMemo(() => advancedTable, []);
 
 
-  const [data, setData] = useState([]);
+  const dispatch = useDispatch()
+
+
+  const store = useSelector((state) => state);
+  const { branches: branchList, totalbranchesCount: count } = useSelector((state) => state.branches);
+
+  console.log("store 333", store);
+
+
+  const [data, setData] = useState([{},{},{},{},{},{},{},{},{},{},{},{}]);
 
   const [perPage, setPerPage] = useState(10);
   const [multiplePage, setMultiplePage] = useState([1])
@@ -130,6 +147,93 @@ const Branch = ({ title = "Branch List" }) => {
 
   const [filterText, setFilterText] = useState("");
 
+  useEffect(() => {
+
+    async function getBranches() {
+
+      try {
+        const response = await branchService.getUnDeletedBranchsList(
+          filterText,
+          currentPage,
+          perPage,
+          true,
+          true
+        );
+
+        dispatch(setBranches({ rows: response.data.listBranches, count: response.data.count }))
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+    getBranches()
+
+  }, [])
+
+  useEffect(() => {
+
+    console.log("length", branchList.length);
+
+    setData(branchList);
+    const totalCount = count;
+    const calculatedPageCount = Math.ceil(totalCount / perPage);
+    if (calculatedPageCount > 1) {
+      setCanGoNextPage(true);
+    }
+    const arrayPage = Array.from({ length: calculatedPageCount }, (_, i) => i + 1);
+    setMultiplePage(arrayPage)
+
+  }, [branchList]);
+
+
+  // my page hadler
+
+  async function goToNextPage(pageNumber) {
+
+    try {
+
+      const response = await branchService.getUnDeletedBranchsList(
+        filterText,
+        pageNumber + 1,
+        perPage,
+        true,
+        true
+      );
+      dispatch(setBranches({ rows: response.data.listBranches, count: response.data.count }))
+
+    } catch (error) {
+      console.error("Error while fetching branches:", error);
+    }
+
+  }
+
+
+  // my row Per page handler
+
+  const handlePerRowsChange = async (newPerPage) => {
+
+    try {
+
+      const response = await branchService.getUnDeletedBranchsList(
+        filterText,
+        currentPage,
+        newPerPage,
+        true,
+        true
+      );
+
+
+      dispatch(setBranches({ rows: response.data.listBranches, count: response.data.count }))
+      setPerPage(Number(newPerPage))
+
+    } catch (error) {
+      console.error("Error while fetching branches:", error);
+    }
+
+  };
+
+
+  // new useEffect
   // useEffect(() => {
   //   async function getBranches() {
   //     try {
@@ -141,53 +245,30 @@ const Branch = ({ title = "Branch List" }) => {
   //         true
   //       );
 
-  //       console.log("response",response);
+  //       console.log("response", response);
   //       // Update the data with the fetched data
   //       setData(response.data.listBranches);
+  //       // Calculate pageCount based on the count from API
+  //       const totalCount = response.data.count;
+  //       const calculatedPageCount = Math.ceil(totalCount / perPage);
+  //       if(calculatedPageCount > 1){
+
+  //         setCanGoNextPage(true)
+
+  //       }
+
+  //       const arrayPage =  Array.from({ length: calculatedPageCount }, (_, i) => i + 1);
+  //       setMultiplePage(arrayPage)
+
   //     } catch (error) {
   //       console.error("Error fetching data:", error);
   //     }
   //   }
 
   //   getBranches();
+
   // }, [filterText, currentPage, perPage]);
 
-  // new useEffect
-  useEffect(() => {
-    async function getBranches() {
-      try {
-        const response = await branchService.getUnDeletedBranchsList(
-          filterText,
-          currentPage,
-          perPage,
-          true,
-          true
-        );
-  
-        console.log("response", response);
-        // Update the data with the fetched data
-        setData(response.data.listBranches);
-        // Calculate pageCount based on the count from API
-        const totalCount = response.data.count;
-        const calculatedPageCount = Math.ceil(totalCount / perPage);
-        if(calculatedPageCount > 1){
-
-          setCanGoNextPage(true)
-
-        }
-
-        const arrayPage =  Array.from({ length: calculatedPageCount }, (_, i) => i + 1);
-        setMultiplePage(arrayPage)
-  
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
-  
-    getBranches();
-
-  }, [filterText, currentPage, perPage]);
-  
 
   const tableInstance = useTable(
     {
@@ -239,13 +320,52 @@ const Branch = ({ title = "Branch List" }) => {
   } = tableInstance;
 
   const { globalFilter, pageIndex, pageSize } = state;
+
+
+
+  // debounce search
+  const debounceSearch = useCallback(
+    debounceFunction(
+      async (nextValue) => {
+        try {
+          const response = await branchService.getUnDeletedBranchsList(
+            nextValue,
+            currentPage,
+            perPage,
+            true,
+            true
+          );
+
+          dispatch(
+            setBranches({
+              rows: response.data.listBranches,
+              count: response.data.count,
+            })
+          );
+        } catch (error) {
+          console.error("Error while fetching branches:", error);
+        }
+      },
+      1000
+    ),
+    []
+  );
+
+
+
+
+
   return (
     <>
       <Card>
         <div className="md:flex justify-between items-center mb-6">
           <h4 className="card-title">{title}</h4>
           <div>
-            <GlobalFilter filter={globalFilter} setFilter={setGlobalFilter} />
+            <GlobalFilter filterText={filterText} onFilter={(event) => {
+              console.log("text", event.target.value);
+              setFilterText(event.target.value);
+              debounceSearch(event.target.value);
+            }} />
           </div>
         </div>
         <div className="overflow-x-auto -mx-6">
@@ -283,7 +403,7 @@ const Branch = ({ title = "Branch List" }) => {
                   className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
                   {...getTableBodyProps}
                 >
-                  {page.map((row) => {
+                  {page && page.length > 0 ? page.map((row) => {
                     prepareRow(row);
                     return (
                       <tr {...row.getRowProps()}>
@@ -296,6 +416,15 @@ const Branch = ({ title = "Branch List" }) => {
                         })}
                       </tr>
                     );
+                  }) : [0].map((item) => {
+
+                    return (
+                      <tr className="text-center">
+                        <td></td>
+                        <td style={{height:"10em"}} colSpan={ '4'}>No Data Found !</td>
+                      </tr>
+                    )
+
                   })}
                 </tbody>
               </table>
@@ -307,7 +436,11 @@ const Branch = ({ title = "Branch List" }) => {
             <select
               className="form-control py-2 w-max"
               value={perPage}
-              onChange={(e) => setPerPage(Number(e.target.value))}
+              onChange={(e) => {
+                handlePerRowsChange(e.target.value)
+                setPerPage(Number(e.target.value))
+                setPageSize(Number(e.target.value))
+              }}
             >
               {[10, 25, 50].map((pageSize) => (
                 <option key={pageSize} value={pageSize}>
@@ -349,12 +482,12 @@ const Branch = ({ title = "Branch List" }) => {
                   href="#"
                   aria-current="page"
                   className={` ${pageIdx == pageIndex
-                      ? "bg-slate-900 dark:bg-slate-600  dark:text-slate-200 text-white font-medium "
-                      : "bg-slate-100 dark:bg-slate-700 dark:text-slate-400 text-slate-900  font-normal  "
+                    ? "bg-slate-900 dark:bg-slate-600  dark:text-slate-200 text-white font-medium "
+                    : "bg-slate-100 dark:bg-slate-700 dark:text-slate-400 text-slate-900  font-normal  "
                     }    text-sm rounded leading-[16px] flex h-6 w-6 items-center justify-center transition-all duration-150`}
-                  onClick={() => gotoPage(pageIdx)}
+                  onClick={() => goToNextPage(pageIdx)}
                 >
-                  {page }
+                  {page}
                 </button>
               </li>
             ))}
@@ -362,7 +495,10 @@ const Branch = ({ title = "Branch List" }) => {
               <button
                 className={` ${!canGoNextPage ? "opacity-50 cursor-not-allowed" : ""
                   }`}
-                onClick={() => nextPage()}
+                onClick={() => {
+                  console.log("hhh", pageCount);
+                  nextPage()
+                } }
                 disabled={!canGoNextPage}
               >
                 Next
@@ -370,7 +506,11 @@ const Branch = ({ title = "Branch List" }) => {
             </li>
             <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
               <button
-                onClick={() => gotoPage(pageCount - 1)}
+                onClick={() =>{
+                  
+
+                  gotoPage(pageCount - 1)
+                } }
                 disabled={!canNextPage}
                 className={` ${!canGoNextPage ? "opacity-50 cursor-not-allowed" : ""
                   }`}

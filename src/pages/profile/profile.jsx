@@ -143,11 +143,6 @@ const profile = () => {
   
   const { profileData: profile, profileExists } = useSelector((state) => state.profile);
 
-
-  // console.log("store", store);
-
-
-
   const [firstNameErr, setFirstNameErr] = useState("");
   const [lastNameErr, setLastNameErr] = useState("");
   const [fatherNameErr, setFatherNameErr] = useState("");
@@ -235,14 +230,10 @@ const profile = () => {
   };
 
 
-
-
-
   const handleStateChange = (selectedOption) => {
 
     setSelectedState(selectedOption);
     setSelectedCity(null)
-
 
     setCurrentUser({ ...currentUser, ["state"]: selectedOption?.value, ["city"]: null });
 
