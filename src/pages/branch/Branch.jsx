@@ -143,6 +143,8 @@ const Branch = ({ title = "Branch List" }) => {
   const [canGoNextPage, setCanGoNextPage] = useState(false);
   const [canGoPreviousPage, setCanGoPreviousPage] = useState(false);
 
+  console.log("currentPage",currentPage);
+
 
 
   const [filterText, setFilterText] = useState("");
@@ -172,7 +174,6 @@ const Branch = ({ title = "Branch List" }) => {
 
   useEffect(() => {
 
-    console.log("length", branchList.length);
 
     setData(branchList);
     const totalCount = count;
@@ -199,6 +200,28 @@ const Branch = ({ title = "Branch List" }) => {
         true,
         true
       );
+      setCurrentPage(pageNumber+1)
+      dispatch(setBranches({ rows: response.data.listBranches, count: response.data.count }))
+
+    } catch (error) {
+      console.error("Error while fetching branches:", error);
+    }
+
+  }
+
+
+  async function goToNext() {
+
+    try {
+
+      const response = await branchService.getUnDeletedBranchsList(
+        filterText,
+        currentPage + 1,
+        perPage,
+        true,
+        true
+      );
+      setCurrentPage(currentPage+1)
       dispatch(setBranches({ rows: response.data.listBranches, count: response.data.count }))
 
     } catch (error) {
@@ -300,6 +323,8 @@ const Branch = ({ title = "Branch List" }) => {
       ]);
     }
   );
+
+
   const {
     getTableProps,
     getTableBodyProps,
@@ -321,10 +346,13 @@ const Branch = ({ title = "Branch List" }) => {
 
   const { globalFilter, pageIndex, pageSize } = state;
 
+  console.log("pageIndex",pageIndex);
+
 
 
   // debounce search
   const debounceSearch = useCallback(
+    
     debounceFunction(
       async (nextValue) => {
         try {
@@ -420,8 +448,7 @@ const Branch = ({ title = "Branch List" }) => {
 
                     return (
                       <tr className="text-center">
-                        <td></td>
-                        <td style={{height:"10em"}} colSpan={ '4'}>No Data Found !</td>
+                        <td style={{height:"10em"}} colSpan={ '6'}>No Data Found !</td>
                       </tr>
                     )
 
@@ -481,7 +508,7 @@ const Branch = ({ title = "Branch List" }) => {
                 <button
                   href="#"
                   aria-current="page"
-                  className={` ${pageIdx == pageIndex
+                  className={` ${pageIdx+1 == currentPage
                     ? "bg-slate-900 dark:bg-slate-600  dark:text-slate-200 text-white font-medium "
                     : "bg-slate-100 dark:bg-slate-700 dark:text-slate-400 text-slate-900  font-normal  "
                     }    text-sm rounded leading-[16px] flex h-6 w-6 items-center justify-center transition-all duration-150`}
@@ -497,7 +524,7 @@ const Branch = ({ title = "Branch List" }) => {
                   }`}
                 onClick={() => {
                   console.log("hhh", pageCount);
-                  nextPage()
+                  goToNext()
                 } }
                 disabled={!canGoNextPage}
               >
